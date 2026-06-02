@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Ticket System Premium</title>
+<style>
+    body {
+        background: #0d0d0d;
+        color: #fff;
+        font-family: 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+    }
+
+    .container {
+        padding: 30px;
+        display: none;
+        animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+        background: #1a1a1a;
+        padding: 20px;
+        margin: 20px auto;
+        width: 350px;
+        border-radius: 12px;
+        box-shadow: 0 0 15px #000;
+    }
+
+    button {
+        padding: 12px 25px;
+        margin: 10px;
+        background: linear-gradient(90deg, #4e54c8, #8f94fb);
+        border: none;
+        color: white;
+        cursor: pointer;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: 0.2s;
+    }
+
+    button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 10px #4e54c8;
+    }
+
+    input {
+        padding: 12px;
+        width: 80%;
+        margin-top: 10px;
+        border-radius: 8px;
+        border: none;
+        outline: none;
+    }
+
+    #nicknameScreen {
+        display: block;
+        padding-top: 100px;
+    }
+
+    .menuButton {
+        width: 250px;
+    }
+</style>
+</head>
+<body>
+
+<!-- NICKNAME SCREEN -->
+<div id="nicknameScreen">
+    <h1>🎮 Benvenuto!</h1>
+    <p>Inserisci il tuo Nickname</p>
+    <input id="nicknameInput" placeholder="Nickname">
+    <br><br>
+    <button onclick="saveNickname()">Entra</button>
+</div>
+
+<!-- MAIN MENU -->
+<div id="mainMenu" class="container">
+    <h1>🎟️ Ticket System</h1>
+    <h3>👤 Utente: <span id="username"></span></h3>
+
+    <div class="card">
+        <h2>I tuoi Ticket</h2>
+        <p>Common: <span id="common">0</span></p>
+        <p>Rare: <span id="rare">0</span></p>
+        <p>Epic: <span id="epic">0</span></p>
+    </div>
+
+    <button class="menuButton" onclick="openRedeem()">🎁 Redeem Code</button>
+    <button class="menuButton" onclick="openShop()">🛒 Shop</button>
+</div>
+
+<!-- REDEEM MENU -->
+<div id="redeemMenu" class="container">
+    <h1>🎁 Redeem Code</h1>
+    <div class="card">
+        <input id="codeInput" placeholder="Inserisci codice">
+        <button onclick="redeem()">Redeem</button>
+    </div>
+    <button onclick="backToMenu()">⬅️ Torna al Menu</button>
+</div>
+
+<!-- SHOP MENU -->
+<div id="shopMenu" class="container">
+    <h1>🛒 Shop</h1>
+
+    <div class="card">
+        <h3>Sword — 1 Common Ticket</h3>
+        <button onclick="buy('Sword')">Compra</button>
+    </div>
+
+    <div class="card">
+        <h3>Shield — 1 Common Ticket</h3>
+        <button onclick="buy('Shield')">Compra</button>
+    </div>
+
+    <button onclick="backToMenu()">⬅️ Torna al Menu</button>
+</div>
+
+<script>
+
+// ----------------------
+// CONFIG
+// ----------------------
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1511301192817442878/yFlgt0GoJ2GUQTvVqB4HZUx81T055i2g8z8bhYyPPfHz33J71qItQGQvi3uQVCX07kEY";
+
+// URL del file codici su Netlify
+const CODES_URL = "https://nimble-bavarois-ec9a13.netlify.app/";
+
+// ----------------------
+// NICKNAME
+// ----------------------
+function saveNickname() {
+    const nick = document.getElementById("nicknameInput").value.trim();
+    if (nick.length < 3) {
+        alert("Il nickname deve avere almeno 3 caratteri");
+        return;
+    }
+    localStorage.setItem("nickname", nick);
+    loadApp();
+}
+
+function loadApp() {
+    const nick = localStorage.getItem("nickname");
+    if (!nick) return;
+
+    document.getElementById("nicknameScreen").style.display = "none";
+    document.getElementById("mainMenu").style.display = "block";
+    document.getElementById("username").innerText = nick;
+
+    loadTickets();
+}
+
+// ----------------------
+// NAVIGAZIONE MENU
+// ----------------------
+function openRedeem() {
+    hideAll();
+    document.getElementById("redeemMenu").style.display = "block";
+}
+
+function openShop() {
+    hideAll();
+    document.getElementById("shopMenu").style.display = "block";
+}
+
+function backToMenu() {
+    hideAll();
+    document.getElementById("mainMenu").style.display = "block";
+}
+
+function hideAll() {
+    document.getElementById("mainMenu").style.display = "none";
+    document.getElementById("redeemMenu").style.display = "none";
+    document.getElementById("shopMenu").style.display = "none";
+}
+
+// ----------------------
+// TICKET SYSTEM
+// ----------------------
+function loadTickets() {
+    document.getElementById("common").innerText = localStorage.getItem("common") || 0;
+    document.getElementById("rare").innerText = localStorage.getItem("rare") || 0;
+    document.getElementById("epic").innerText = localStorage.getItem("epic") || 0;
+}
+
+function addTicket(type, amount) {
+    let current = parseInt(localStorage.getItem(type) || 0);
+    localStorage.setItem(type, current + amount);
+    loadTickets();
+}
+
+// ----------------------
+// REDEEM CODE (NUOVA VERSIONE CON NETLIFY)
+// ----------------------
+async function redeem() {
+    const code = document.getElementById("codeInput").value.trim().toUpperCase();
+    const user = localStorage.getItem("nickname");
+
+    // Scarica il file HTML dei codici
+    const response = await fetch(CODES_URL);
+    const text = await response.text();
+
+    // Estrae il JSON dal tag <pre>
+    const jsonStart = text.indexOf("{");
+    const jsonEnd = text.lastIndexOf("}") + 1;
+    const jsonString = text.substring(jsonStart, jsonEnd);
+
+    const availableCodes = JSON.parse(jsonString);
+
+    // Controllo codice
+    if (!availableCodes[code]) {
+        alert("Codice non valido o già usato");
+        return;
+    }
+
+    // Aggiungi ticket
+    addTicket(availableCodes[code].type, availableCodes[code].amount);
+
+    // Notifica Discord
+    sendWebhook(`🎉 **${user}** ha riscattato il codice **${code}** ottenendo **${availableCodes[code].amount} ${availableCodes[code].type} ticket**`);
+
+    alert("Codice riscattato!");
+
+    // ORA TU MANUALMENTE RIMUOVI IL CODICE DAL FILE NETLIFY
+}
+
+// ----------------------
+// SHOP
+// ----------------------
+function buy(item) {
+    let current = parseInt(localStorage.getItem("common") || 0);
+
+    if (current < 1) {
+        alert("Non hai abbastanza Common Ticket");
+        return;
+    }
+
+    localStorage.setItem("common", current - 1);
+    loadTickets();
+
+    sendWebhook(`🛒 **${localStorage.getItem("nickname")}** ha acquistato **${item}** per 1 Common Ticket`);
+
+    alert("Acquisto completato!");
+}
+
+// ----------------------
+// WEBHOOK DISCORD
+// ----------------------
+function sendWebhook(message) {
+    fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: message })
+    });
+}
+
+// Avvio
+loadApp();
+
+</script>
+
+</body>
+</html>
