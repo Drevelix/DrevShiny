@@ -130,8 +130,14 @@
 // ----------------------
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1511301192817442878/yFlgt0GoJ2GUQTvVqB4HZUx81T055i2g8z8bhYyPPfHz33J71qItQGQvi3uQVCX07kEY";
 
-// URL del file codici su Netlify
-const CODES_URL = "https://nimble-bavarois-ec9a13.netlify.app/";
+// Codici disponibili (ripristinati)
+const codes = {
+    "COMMON1": { type: "common", amount: 1, used: false },
+    "COMMON2": { type: "common", amount: 1, used: false },
+    "COMMON3": { type: "common", amount: 1, used: false },
+    "RARE1": { type: "rare", amount: 1, used: false },
+    "EPIC1": { type: "epic", amount: 1, used: false }
+};
 
 // ----------------------
 // NICKNAME
@@ -197,38 +203,27 @@ function addTicket(type, amount) {
 }
 
 // ----------------------
-// REDEEM CODE (NUOVA VERSIONE CON NETLIFY)
+// REDEEM CODE
 // ----------------------
-async function redeem() {
+function redeem() {
     const code = document.getElementById("codeInput").value.trim().toUpperCase();
-    const user = localStorage.getItem("nickname");
 
-    // Scarica il file HTML dei codici
-    const response = await fetch(CODES_URL);
-    const text = await response.text();
-
-    // Estrae il JSON dal tag <pre>
-    const jsonStart = text.indexOf("{");
-    const jsonEnd = text.lastIndexOf("}") + 1;
-    const jsonString = text.substring(jsonStart, jsonEnd);
-
-    const availableCodes = JSON.parse(jsonString);
-
-    // Controllo codice
-    if (!availableCodes[code]) {
-        alert("Codice non valido o già usato");
+    if (!codes[code]) {
+        alert("Codice non valido");
         return;
     }
 
-    // Aggiungi ticket
-    addTicket(availableCodes[code].type, availableCodes[code].amount);
+    if (codes[code].used) {
+        alert("Codice già usato");
+        return;
+    }
 
-    // Notifica Discord
-    sendWebhook(`🎉 **${user}** ha riscattato il codice **${code}** ottenendo **${availableCodes[code].amount} ${availableCodes[code].type} ticket**`);
+    codes[code].used = true;
+    addTicket(codes[code].type, codes[code].amount);
+
+    sendWebhook(`🎉 **${localStorage.getItem("nickname")}** ha riscattato il codice **${code}** ottenendo **${codes[code].amount} ${codes[code].type} ticket**`);
 
     alert("Codice riscattato!");
-
-    // ORA TU MANUALMENTE RIMUOVI IL CODICE DAL FILE NETLIFY
 }
 
 // ----------------------
